@@ -9,4 +9,4 @@ class Video(Base):
     title = Column(String)
     thumbnail_url = Column(String)
     video_url = Column(String)
-    duration = Column(Integer)  # Duration in seconds
+    duration = Column(Integer) 

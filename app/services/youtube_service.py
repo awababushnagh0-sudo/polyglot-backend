@@ -3,6 +3,14 @@ from pathlib import Path
 from faster_whisper import WhisperModel
 from fastapi import HTTPException
 from typing import Optional
+import google.generativeai as genai
+import os
+from dotenv import load_dotenv
+from typing import List , Dict , TypedDict
+from app.core.config import settings
+
+load_dotenv()
+
 
 AUDIO_DIR = Path("media/audio")
 AUDIO_DIR.mkdir(parents=True, exist_ok=True)
@@ -125,3 +133,49 @@ def trancribe_audio_to_json(audio_path: str):
         {"start": seg.start, "end": seg.end, "text": seg.text.strip()}
         for seg in segments
     ]
+
+genai_api_key = settings.GENAI_API_KEY
+genai.configure(api_key=genai_api_key)
+model = genai.GenerativeModel("gemini-2.5-flash")
+
+class Segments(TypedDict):
+    start: float
+    end: float
+    text: str
+
+def ai_translate_segments(segments: List[Segments] , lang: str = "eng"):
+    prompt = f"""
+        You are a translation engine.
+
+        Task:
+        Translate the value of the "text" field into {lang}.
+
+        Rules:
+        - Do NOT modify the "start" or "end" values.
+        - Keep the JSON structure exactly the same.
+        - Add a new field called "text2" that contains the translated text.
+        - Do NOT remove any fields.
+        - Do NOT reorder the objects.
+        - Return VALID JSON only.
+        - Do NOT include explanations, markdown, or comments.
+
+        Input JSON:
+        {segments}
+
+        Expected format example:
+        [
+        {{
+            "start": 0,
+            "end": 3.2,
+            "text": "Hello world",
+            "text2": "مرحبا بالعالم"
+        }}
+        ]
+    """
+    response = model.generate_content(prompt)
+    return response
+
+
+models = genai.list_models()
+for m in models:
+    print(f"Model Name: {m.name}, Available: {getattr(m, 'available', 'Unknown')}")
